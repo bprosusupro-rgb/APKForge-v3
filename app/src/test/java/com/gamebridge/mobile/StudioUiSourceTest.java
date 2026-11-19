@@ -16,7 +16,7 @@ public final class StudioUiSourceTest {
         require(source.contains("i == selectedDestination"), "Studio navigation must show the active destination");
         require(source.contains("buildStudioTabletWorkspace(page, hero, offline, source, settings"), "Studio tablet convert page must use its dedicated workspace layout");
         require(source.contains("workspace.setOrientation(LinearLayout.HORIZONTAL)"), "Studio tablet build flow must use two columns");
-        require(source.contains("insets.getSystemWindowInsetTop()"), "Tablet navigation must clear the Android status bar");
+        require(source.contains("WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout()"), "Tablet navigation must clear the Android status bar");
         require(source.contains("\"Build\", \"Web\", \"Library\", \"Settings\""), "Studio navigation covers the core destinations");
         require(source.contains("setTranslationY(dp(8))") && source.contains("ValueAnimator.areAnimatorsEnabled()"), "Studio navigation animation is subtle and respects reduced-motion system settings");
         require(source.contains("boolean keepBrowser = showingBrowser") && source.contains("selectedText.setText(savedSelection)"), "switching UI modes preserves page and selected game state");

@@ -6,6 +6,7 @@ android {
     namespace 'com.gamebridge.mobile'
     compileSdk 36
 
+    def standaloneRelease = providers.gradleProperty('standaloneRelease').isPresent()
     def releaseSigningFile = rootProject.file('release-signing.properties')
     def releaseSigning = new Properties()
     if (releaseSigningFile.isFile()) {
@@ -21,8 +22,8 @@ android {
         applicationId 'com.gamebridge.mobile.v5'
         minSdk 26
         targetSdk 35
-        versionCode 3
-        versionName '3.0.0'
+        versionCode 4
+        versionName '3.1.0'
     }
 
     signingConfigs {
@@ -38,6 +39,7 @@ android {
 
     buildTypes {
         release {
+            if (standaloneRelease) applicationIdSuffix '.standalone'
             if (!releaseSigning.isEmpty()) signingConfig signingConfigs.release
             minifyEnabled false
         }

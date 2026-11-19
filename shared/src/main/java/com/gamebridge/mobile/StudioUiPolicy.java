@@ -1,7 +1,8 @@
 package com.gamebridge.mobile;
 
-/** Persisted presentation choice for the opt-in Studio redesign. */
+/** Persisted presentation choice for the Studio and Classic layouts. */
 public final class StudioUiPolicy {
+    public static final boolean DEFAULT_STUDIO_MODE = true;
     public static final String PREFERENCE_KEY = "studio_ui_enabled";
 
     private StudioUiPolicy() { }

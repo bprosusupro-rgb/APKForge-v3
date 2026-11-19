@@ -17,6 +17,7 @@
         android:usesCleartextTraffic="true">
         <receiver android:name=".MainActivity$InstallResultReceiver" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="true" android:resizeableActivity="true"
+            android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -75,6 +75,8 @@ public final class OfflinePackageFormatTest {
         makeZip(htmlZip, new String[][]{{"web/game.html", "<h1>Offline</h1>"}, {"web/./game.html", "<h1>Duplicate alias</h1>"}, {"web/assets/play.js", "window.ready=true"}});
         OfflineApkPackager.Prepared html = OfflineApkPackager.createUnsigned(new java.io.File(assets + "html-template.apk"), htmlZip, "Web Game", "com.example.web", htmlOut);
         checkInstallableResourceTable(htmlOut);
+        truth(!OfflinePackageFormat.isDebuggable(apkEntry(htmlOut.getPath(), "AndroidManifest.xml")),
+                "Generated HTML games must be non-debuggable.");
         try (java.util.zip.ZipFile apk = new java.util.zip.ZipFile(htmlOut)) {
             truth(apkText(apk, "assets/www/index.html", "UTF-8").contains("game.html"), "WebView entrypoint must route to a non-index HTML page");
             equal("<h1>Offline</h1>", apkText(apk, "assets/www/game.html", "UTF-8"));
@@ -149,6 +151,11 @@ public final class OfflinePackageFormatTest {
         truth(rejected, "Ren'Py asset paths must not escape the game directory");
         String first = OfflinePackageFormat.packageFor("My Game", "com.example.mygame");
         equal(first, OfflinePackageFormat.packageFor("My Game", "com.example.mygame"));
+        String originalSeed = OfflinePackageFormat.converterPackageSeed("com.example.mygame", "com.gamebridge.mobile.v5");
+        equal(first, OfflinePackageFormat.packageFor("My Game", originalSeed));
+        String standaloneSeed = OfflinePackageFormat.converterPackageSeed("com.example.mygame", "com.gamebridge.mobile.v5.standalone");
+        truth(!first.equals(OfflinePackageFormat.packageFor("My Game", standaloneSeed)),
+                "a standalone converter with a separate signing key must use different generated game IDs");
         String legacyPackage = legacyPackageFor("My Game", "com.example.mygame", "com.example.renpylocal");
         truth(!first.equals(legacyPackage), "V3-generated game IDs must not collide with V2 APKs signed by the previous certificate");
         truth(!first.equals(OfflinePackageFormat.packageFor("Another Game", "com.example.other")), "different games need different package IDs");
@@ -183,9 +190,8 @@ public final class OfflinePackageFormatTest {
         OfflinePackageFormat.replacePackage(apkEntry(base + "html-template.apk", "AndroidManifest.xml"), "com.example.finalhtml", htmlId);
         byte[] htmlManifest = apkEntry(base + "html-template.apk", "AndroidManifest.xml");
         OfflinePackageFormat.replaceFixedText(htmlManifest, "Final HTML Smoke", OfflinePackageFormat.fixedAsciiLabel("Web Game", 16));
-        truth(OfflinePackageFormat.booleanAttribute(htmlManifest, "application", "debuggable"), "debug HTML template must be normalized before output");
-        byte[] safeHtmlManifest = OfflinePackageFormat.setBooleanAttribute(htmlManifest, "application", "debuggable", false);
-        truth(!OfflinePackageFormat.booleanAttribute(safeHtmlManifest, "application", "debuggable"), "generated game APK must not be debuggable");
+        byte[] safeHtmlManifest = OfflinePackageFormat.disableDebugging(htmlManifest);
+        truth(!OfflinePackageFormat.isDebuggable(safeHtmlManifest), "HTML templates with or without a debug flag must produce a non-debuggable manifest");
         String[] converterCandidates = {
                 "android-app/app/build/outputs/apk/debug/app-debug.apk",
                 "app/build/outputs/apk/debug/app-debug.apk"

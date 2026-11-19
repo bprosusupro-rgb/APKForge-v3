@@ -15,8 +15,10 @@ public final class GameLaunchSourceTest {
                 "the converter must expose Play for its latest successful build");
         require(source.contains("play.setOnClickListener(v -> playApk(apk))"),
                 "library builds must be playable directly from the library");
-        require(source.contains("installApk(apk, true)"),
-                "Play must install first when the generated game is not installed");
+        require(source.contains("prepareGame(apk, true)")
+                        && source.contains("launch != null && installedBuildMatches(packageName, apk)")
+                        && source.contains("writeInstallSession(apk, packageName, launchAfterInstall)"),
+                "Play must prepare an install for a missing or changed build");
         require(source.contains("apkforge.launch_after_install") &&
                         source.contains("getLaunchIntentForPackage(packageName)"),
                 "a Play-triggered installation must launch the game after Android confirms it");

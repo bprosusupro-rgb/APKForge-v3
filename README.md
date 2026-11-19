@@ -8,7 +8,9 @@ Search suggestions do not certify a download as safe. HTTPS Windows EXEs can be 
 
 Offline snapshot smoke test on the Android Studio tablet emulator: a captured `example.com` page packaged, installed, and rendered with airplane mode enabled. This caught and fixed a root-path rewrite that had corrupted closing HTML tags. The sample page also re-ran its own `s.js` script and duplicated some localized paragraphs, so this proves basic HTML capture/launch without network—not that arbitrary games or every page script will behave identically offline. Snapshotting is best-effort; server-backed features, DRM, accounts, and content not loaded before capture may still require internet or remain unavailable.
 
-The installable V3 release is built with `gradlew.bat :app:assembleRelease`. Its output is `app/build/outputs/apk/release/app-release.apk`. The release is signed with the private key referenced by `release-signing.properties`; keep that properties file and `release-signing/apkforge-v3-release.jks` private and backed up together. Future APK updates must use the same signing key. Do not distribute either signing file—distribute only the APK.
+Build V3 with `./gradlew :app:assembleRelease` on Linux or macOS, or `gradlew.bat :app:assembleRelease` on Windows. The release APK is written to `app/build/outputs/apk/release/`. With `release-signing.properties`, Gradle signs with the referenced key. Back up both the properties file and the keystore privately. Android updates require the same application ID and signing certificate.
+
+Build with `-PstandaloneRelease` to use the separate `com.gamebridge.mobile.v5.standalone` application ID. This variant can be installed alongside an existing V3 copy. It has its own library, app data and generated game package IDs. If no signing configuration is supplied, sign the unsigned APK before distribution.
 
 The project bridges the core conversion, offline capture, Ren'Py size/storage, touch/keyboard, archive, source-assessment, and EXE-structure checks into Gradle with `:app:testDebugUnitTest`. The underlying self-running test classes can also be executed directly when diagnosing a specific case.
 

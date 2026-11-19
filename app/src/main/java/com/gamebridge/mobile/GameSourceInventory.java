@@ -5,11 +5,16 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /** Inventories every file in an imported archive and mirrors the packager's game-root selection. */
 final class GameSourceInventory {
+    private static final Pattern DRIVE_PATH = Pattern.compile("^[A-Za-z]:");
+    private static final Pattern IMAGE = Pattern.compile("\\.(png|jpe?g|webp|gif|bmp|avif|svg)$");
+    private static final Pattern AUDIO_VIDEO = Pattern.compile("\\.(ogg|mp3|wav|flac|opus|m4a|mp4|webm|ogv|mov)$");
+
     private GameSourceInventory() { }
     static final class Result {
         final boolean isRenPy;
@@ -41,7 +46,7 @@ final class GameSourceInventory {
             while(entries.hasMoreElements()) {
                 ZipEntry entry=entries.nextElement(); if(entry.isDirectory()) continue;
                 String path=entry.getName().replace('\\','/');
-                if(path.startsWith("/")||path.matches("^[A-Za-z]:.*")||hasParentSegment(path))
+                if(path.startsWith("/")||DRIVE_PATH.matcher(path).find()||hasParentSegment(path))
                     throw new IllegalArgumentException("The selected archive contains an unsafe file path: "+path);
                 long bytes=entry.getSize()>=0?entry.getSize():Math.max(0,entry.getCompressedSize());
                 files.add(new Item(path,bytes));
@@ -64,8 +69,8 @@ final class GameSourceInventory {
             included++; String lower=relative.toLowerCase(Locale.ROOT);
             if(lower.endsWith(".rpy")||lower.endsWith(".rpyc")||lower.endsWith(".py")||lower.endsWith(".js")||lower.endsWith(".mjs")||lower.endsWith(".css")) scripts++;
             else if(lower.endsWith(".rpa")||lower.endsWith(".zip")||lower.endsWith(".pak")||lower.endsWith(".obb")) archives++;
-            else if(lower.matches(".*\\.(png|jpe?g|webp|gif|bmp|avif|svg)$")) images++;
-            else if(lower.matches(".*\\.(ogg|mp3|wav|flac|opus|m4a|mp4|webm|ogv|mov)$")) av++;
+            else if(IMAGE.matcher(lower).find()) images++;
+            else if(AUDIO_VIDEO.matcher(lower).find()) av++;
             else if(lower.endsWith(".html")||lower.endsWith(".htm")) web++;
             else other++;
             bytes=bytes>Long.MAX_VALUE-item.bytes?Long.MAX_VALUE:bytes+item.bytes;

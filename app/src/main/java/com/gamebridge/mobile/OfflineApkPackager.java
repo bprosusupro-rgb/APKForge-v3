@@ -21,6 +21,10 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.NavigableSet;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -83,8 +87,9 @@ final class OfflineApkPackager {
             stage = 3;
             File gameDataDirectory = context.getExternalFilesDir("library-game-data");
             if (gameDataDirectory == null) gameDataDirectory = new File(context.getFilesDir(), "library-game-data");
-            Prepared prepared = createUnsigned(template, inputZip, appName, packageSeed, unsigned,
-                    requestedFormat, gameDataDirectory);
+            String scopedSeed = OfflinePackageFormat.converterPackageSeed(packageSeed, context.getPackageName());
+            Prepared prepared = createUnsigned(template, inputZip, appName, scopedSeed, unsigned,
+                    project, gameDataDirectory);
             gameDataBundle = prepared.gameDataBundle;
             DiagnosticLog.record(context.getFilesDir(), DiagnosticLog.Event.PACKAGER_UNSIGNED_READY, unsigned.length(), 0);
             stage = 4;
@@ -119,6 +124,11 @@ final class OfflineApkPackager {
         Project project;
         try (ZipFile input = new ZipFile(inputZip)) { project = detect(input); }
         WebGameLinkAnalyzer.validateOverride(project.renpy ? WebGameLinkAnalyzer.Format.RENPY : WebGameLinkAnalyzer.Format.HTML, requestedFormat);
+        return createUnsigned(template, inputZip, appName, packageSeed, output, project, gameDataDirectory);
+    }
+
+    private static Prepared createUnsigned(File template, File inputZip, String appName, String packageSeed,
+                                           File output, Project project, File gameDataDirectory) throws Exception {
         String templatePackage = project.renpy ? RENPY_PACKAGE : HTML_PACKAGE;
         String packageName = OfflinePackageFormat.packageFor(appName, packageSeed, templatePackage);
         String templateLabel = project.renpy ? "RenPy Local SDK Test" : "Final HTML Smoke";
@@ -171,19 +181,31 @@ final class OfflineApkPackager {
             if (name != null && !entry.isDirectory()) names.add(name);
             if (names.size() > MAX_GAME_FILES) throw new IllegalArgumentException("The project contains too many files.");
         }
+        // Index matching roots once, preserving the original ZIP order when picking a project.
+        NavigableSet<String> paths = new TreeSet<>();
+        NavigableSet<String> compiledPaths = new TreeSet<>();
+        Set<String> exeDirectories = new HashSet<>();
         for (String name : names) {
-            String[] parts = name.split("/");
-            for (int i = 0; i < parts.length - 1; i++) {
-                if (!parts[i].equalsIgnoreCase("game")) continue;
-                String root = join(parts, 0, i);
-                String game = root.isEmpty() ? "game/" : root + "/game/";
-                boolean compiledGame = false, windowsExe = false, windowsLib = false;
-                for (String candidate : names) {
-                    if (candidate.startsWith(game) && (candidate.toLowerCase(Locale.ROOT).endsWith(".rpyc") || candidate.toLowerCase(Locale.ROOT).endsWith(".rpa"))) compiledGame = true;
-                    if (candidate.startsWith(root.isEmpty() ? "" : root + "/") && candidate.toLowerCase(Locale.ROOT).endsWith(".exe") && candidate.indexOf('/', root.isEmpty() ? 0 : root.length() + 1) < 0) windowsExe = true;
-                    if (candidate.startsWith(root.isEmpty() ? "lib/" : root + "/lib/")) windowsLib = true;
+            String lower = name.toLowerCase(Locale.ROOT);
+            paths.add(name);
+            if (lower.endsWith(".rpyc") || lower.endsWith(".rpa")) compiledPaths.add(name);
+            if (lower.endsWith(".exe")) exeDirectories.add(name.substring(0, name.lastIndexOf('/') + 1));
+        }
+        if (!compiledPaths.isEmpty()) {
+            Set<String> checkedRoots = new HashSet<>();
+            for (String name : names) {
+                String[] parts = name.split("/");
+                for (int i = 0; i < parts.length - 1; i++) {
+                    if (!parts[i].equalsIgnoreCase("game")) continue;
+                    String root = join(parts, 0, i);
+                    if (!checkedRoots.add(root)) continue;
+                    String prefix = root.isEmpty() ? "" : root + "/";
+                    String game = prefix + "game/";
+                    if (containsPrefix(compiledPaths, game)
+                            && (!exeDirectories.contains(prefix) || containsPrefix(paths, prefix + "lib/"))) {
+                        return new Project(true, root, game, null, null);
+                    }
                 }
-                if (compiledGame && (windowsExe && windowsLib || !windowsExe)) return new Project(true, root, game, null, null);
             }
         }
         String best = null;
@@ -199,6 +221,11 @@ final class OfflineApkPackager {
             if (lower.endsWith(".html") || lower.endsWith(".htm")) return new Project(false, null, null, commonHtmlRoot(names), name);
         }
         throw new IllegalArgumentException("No HTML page or compiled RenPy game data was found. Select a complete RenPy Windows game folder or an HTML project.");
+    }
+
+    private static boolean containsPrefix(NavigableSet<String> paths, String prefix) {
+        String candidate = paths.ceiling(prefix);
+        return candidate != null && candidate.startsWith(prefix);
     }
 
     private static String commonHtmlRoot(List<String> names) {
@@ -259,7 +286,7 @@ final class OfflineApkPackager {
                     if (!project.renpy) {
                         patched = OfflinePackageFormat.replaceFixedText(patched, newPackage + ".MainActivity", oldPackage + ".MainActivity");
                         patched = OfflinePackageFormat.replaceFixedText(patched, oldLabel, newLabel);
-                        patched = OfflinePackageFormat.setBooleanAttribute(patched, "application", "debuggable", false);
+                        patched = OfflinePackageFormat.disableDebugging(patched);
                     }
                     out.write(patched);
                 } else if (project.renpy && name.equals("assets/x-android.json")) {

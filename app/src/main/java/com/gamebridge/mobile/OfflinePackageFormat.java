@@ -35,6 +35,12 @@ final class OfflinePackageFormat {
         return result.toString();
     }
 
+    static String converterPackageSeed(String packageSeed, String converterPackage) {
+        // Each converter app ID gets a different Android Keystore. Keep standalone builds
+        // out of the package namespace signed by an existing APK Forge installation.
+        return converterPackage.endsWith(".standalone") ? packageSeed + "#standalone" : packageSeed;
+    }
+
     static String packageFor(String appName, String requestedPackage) {
         return packageFor(appName, requestedPackage, RENPY_TEMPLATE_PACKAGE);
     }
@@ -176,18 +182,25 @@ final class OfflinePackageFormat {
         return null;
     }
 
-    static boolean booleanAttribute(byte[] xml, String elementName, String attributeName) {
-        int attribute = findAndroidAttribute(xml, elementName, attributeName);
-        if (attribute < 0 || (xml[attribute + 15] & 0xff) != 0x12) throw new IllegalArgumentException("Android boolean attribute was not found: " + attributeName);
-        return readIntLE(xml, attribute + 16) != 0;
+    static boolean isDebuggable(byte[] manifest) {
+        int attribute = debuggableAttribute(manifest);
+        return attribute >= 0 && readIntLE(manifest, attribute + 16) != 0;
     }
 
-    static byte[] setBooleanAttribute(byte[] xml, String elementName, String attributeName, boolean value) {
-        byte[] output = xml.clone();
-        int attribute = findAndroidAttribute(output, elementName, attributeName);
-        if (attribute < 0 || (output[attribute + 15] & 0xff) != 0x12) throw new IllegalArgumentException("Android boolean attribute was not found: " + attributeName);
-        writeIntLE(output, attribute + 16, value ? -1 : 0);
+    static byte[] disableDebugging(byte[] manifest) {
+        int attribute = debuggableAttribute(manifest);
+        if (attribute < 0) return manifest; // Android defaults to false when omitted.
+        byte[] output = manifest.clone();
+        writeIntLE(output, attribute + 16, 0);
         return output;
+    }
+
+    private static int debuggableAttribute(byte[] manifest) {
+        int attribute = findAndroidAttribute(manifest, "application", "debuggable");
+        if (attribute >= 0 && (manifest[attribute + 15] & 0xff) != 0x12) {
+            throw new IllegalArgumentException("The APK template has an invalid debuggable attribute.");
+        }
+        return attribute;
     }
 
     private static int findAndroidAttribute(byte[] xml, String elementName, String attributeName) {
