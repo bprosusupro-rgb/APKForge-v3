@@ -103,11 +103,11 @@ public class MainActivity extends Activity {
     private static final int SAVE_REVIEW_EXE = 18;
     private static final int OPEN_OFFLINE_SAVE_BACKUP = 19;
     private static final int EXPORT_OFFLINE_SAVE_BACKUP = 20;
-    private static final int BG = Color.rgb(12, 16, 23);
-    private static final int CARD = Color.rgb(24, 31, 43);
-    private static final int INPUT = Color.rgb(17, 23, 34);
+    private static final int BG = Color.rgb(9, 13, 19);
+    private static final int CARD = Color.rgb(21, 28, 37);
+    private static final int INPUT = Color.rgb(15, 21, 29);
     private static final int WHITE = Color.rgb(246, 249, 255);
-    private static final int MUTED = Color.rgb(171, 186, 207);
+    private static final int MUTED = Color.rgb(169, 185, 199);
     private static final int MINT = Color.rgb(167, 249, 214);
     private static final int AQUA = Color.rgb(144, 229, 212);
     private static final int GREEN = Color.rgb(169, 232, 145);
@@ -136,6 +136,7 @@ public class MainActivity extends Activity {
     private LinearLayout tabletSidebar;
     private boolean tabletMode;
     private boolean studioMode;
+    private Bitmap studioHeroBitmap;
     private Bitmap browserBrandBitmap;
     private LinearLayout librarySection, installedSection;
     private EditText browserAddress;
@@ -258,19 +259,7 @@ public class MainActivity extends Activity {
         page.setBackgroundColor(BG);
         scroll.addView(page);
 
-        LinearLayout hero = new LinearLayout(this);
-        hero.setOrientation(LinearLayout.VERTICAL);
-        hero.setPadding(dp(22), dp(22), dp(22), dp(23));
-        hero.setBackground(new StudioHeaderDrawable());
-        TextView brand = label("APK Forge V3", 13, AQUA, true);
-        hero.addView(brand);
-        TextView title = label(tabletMode ? "Build an Android game" : "Build an\nAndroid game",
-                tabletMode ? 36 : 32, WHITE, true);
-        if (Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
-        title.setLetterSpacing(-0.025f);
-        title.setPadding(0, dp(12), 0, dp(8));
-        hero.addView(title);
-        hero.addView(label("Package HTML and Ren’Py games on this device.", 14, MUTED, false));
+        View hero = buildStudioHero();
         page.addView(hero, full());
         final View[] destinations = new View[3];
         destinations[0] = hero;
@@ -285,12 +274,10 @@ public class MainActivity extends Activity {
         nav.addView(convertTab, new LinearLayout.LayoutParams(0, dp(48), 1));
         nav.addView(libraryTab, new LinearLayout.LayoutParams(0, dp(48), 1));
         nav.addView(installedTab, new LinearLayout.LayoutParams(0, dp(48), 1));
-        if (studioMode) nav.setVisibility(View.GONE);
-        addGap(page, 10);
-        page.addView(nav, full());
+        if (!studioMode) page.addView(nav, fullWithTop(12));
 
         addGap(page, 16);
-        LinearLayout source = card(page, "Game source", "Choose an HTML file, a ZIP, or a Ren’Py folder with compiled game data.");
+        LinearLayout source = card(page, "Game source", "Select the files you want to package.");
         source.setOnDragListener((view, event) -> {
             if (event.getAction() == android.view.DragEvent.ACTION_DROP && event.getClipData() != null && event.getClipData().getItemCount() > 0) {
                 Uri dropped = event.getClipData().getItemAt(0).getUri();
@@ -304,15 +291,18 @@ public class MainActivity extends Activity {
             }
             return event.getAction() == android.view.DragEvent.ACTION_DRAG_STARTED || event.getAction() == android.view.DragEvent.ACTION_DRAG_ENDED;
         });
-        Button htmlButton = button("Choose HTML file or ZIP", false);
-        htmlButton.setOnClickListener(v -> pickFile());
-        source.addView(htmlButton, fullWithTop(12));
-        Button renpyButton = button("Choose Ren’Py game folder", false);
-        renpyButton.setOnClickListener(v -> pickFolder());
-        source.addView(renpyButton, fullWithTop(8));
+        LinearLayout sourceOptions = new LinearLayout(this);
+        sourceOptions.setOrientation(LinearLayout.HORIZONTAL);
+        Button htmlButton = sourceButton("HTML or ZIP", R.drawable.source_file, this::pickFile);
+        Button renpyButton = sourceButton("Ren’Py folder", R.drawable.source_folder, this::pickFolder);
+        sourceOptions.addView(htmlButton, new LinearLayout.LayoutParams(0, -1, 1));
+        LinearLayout.LayoutParams folderParams = new LinearLayout.LayoutParams(0, -1, 1);
+        folderParams.setMarginStart(dp(8));
+        sourceOptions.addView(renpyButton, folderParams);
+        source.addView(sourceOptions, fullWithTop(12));
         selectedText = label("No game selected", 12, MUTED, false);
-        selectedText.setPadding(0, dp(12), 0, 0);
-        source.addView(selectedText);
+        selectedText.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        source.addView(selectedText, fullWithTop(11));
 
         addGap(page, 14);
         LinearLayout settings = card(page, "App details", "Keep the same title and package seed when updating a game.");
@@ -333,6 +323,9 @@ public class MainActivity extends Activity {
 
         addGap(page, 14);
         Button convert = button("Build playable APK", true);
+        convert.setMinHeight(dp(58));
+        convert.setTextSize(16);
+        setLeadingGlyph(convert, Glyph.OPEN, BG);
         buildApkButton = convert;
         convert.setEnabled(!busy);
         convert.setOnClickListener(v -> convert());
@@ -348,11 +341,11 @@ public class MainActivity extends Activity {
         page.addView(statusText, full());
         playBuiltButton = button("Play built game", true);
         playBuiltButton.setContentDescription("Launch the latest built game, installing it first if needed");
-        playBuiltButton.setEnabled(lastApk != null && lastApk.isFile());
+        playBuiltButton.setVisibility(lastApk != null && lastApk.isFile() ? View.VISIBLE : View.GONE);
         playBuiltButton.setOnClickListener(v -> playApk(lastApk));
         page.addView(playBuiltButton, full());
         saveApkButton = button("Save finished APK", false);
-        saveApkButton.setEnabled(lastApk != null && lastApk.isFile());
+        saveApkButton.setVisibility(lastApk != null && lastApk.isFile() ? View.VISIBLE : View.GONE);
         saveApkButton.setOnClickListener(v -> saveApk());
         page.addView(saveApkButton, fullWithTop(8));
         saveGameDataButton = button("Save separate Ren’Py game data ZIP", false);
@@ -362,7 +355,7 @@ public class MainActivity extends Activity {
         addGap(page, 18);
         LinearLayout offline = card(page, "Offline packaging",
                 "APK Forge signs builds on this device. Export both files when a large Ren’Py build includes a separate data ZIP.");
-        addGap(page, 16);
+        if (!studioMode) addGap(page, 16);
         LinearLayout library = card(page, "Game library", "Play, update or remove your finished builds.");
         librarySection = library;
         destinations[1] = library;
@@ -372,7 +365,7 @@ public class MainActivity extends Activity {
         libraryList = new LinearLayout(this);
         libraryList.setOrientation(LinearLayout.VERTICAL);
         library.addView(libraryList, fullWithTop(8));
-        addGap(page, 14);
+        if (!studioMode) addGap(page, 14);
         LinearLayout installed = card(page, "Installed games", "Open or uninstall apps installed on this device.");
         installedSection = installed;
         destinations[2] = installed;
@@ -390,7 +383,8 @@ public class MainActivity extends Activity {
         convertRoot = root;
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(BG);
-        root.setPadding(dp(studioMode ? (tabletMode ? 12 : 12) : 18), dp(8), dp(studioMode ? (tabletMode ? 12 : 12) : 18), 0);
+        int chromeInset = studioMode ? 4 : 10;
+        root.setPadding(dp(chromeInset), dp(6), dp(chromeInset), 0);
         Button menuButton = button(studioMode ? "APK FORGE  /  STUDIO" : "☰     APK FORGE MENU", false);
         menuButton.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         menuButton.setOnClickListener(v -> showNavigationDrawer());
@@ -413,6 +407,45 @@ public class MainActivity extends Activity {
             showAppContent(root);
         }
         if (studioMode) presentStudioView(root);
+    }
+
+    private View buildStudioHero() {
+        if (studioHeroBitmap == null) {
+            studioHeroBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.studio_hero);
+        }
+        LinearLayout hero = new LinearLayout(this);
+        hero.setOrientation(LinearLayout.VERTICAL);
+        hero.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+        hero.setMinimumHeight(dp(tabletMode ? 232 : 218));
+        hero.setPadding(dp(20), dp(22), dp(18), dp(22));
+        hero.setBackground(new StudioHeaderDrawable(studioHeroBitmap, dp(28)));
+
+        TextView brand = label("APK FORGE", 11, AQUA, true);
+        brand.setIncludeFontPadding(false);
+        brand.setLetterSpacing(0.18f);
+        hero.addView(brand, full());
+        TextView title = label(tabletMode ? "Turn games into apps." : "Turn games\ninto apps.",
+                tabletMode ? 44 : 35, WHITE, true);
+        if (Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
+        title.setIncludeFontPadding(false);
+        title.setLetterSpacing(-0.046f);
+        hero.addView(title, fullWithTop(12));
+        TextView summary = label(tabletMode ? "Package HTML and Ren’Py games on this device."
+                : "Build Android APKs from\nHTML and Ren’Py games.", 14, MUTED, false);
+        summary.setLineSpacing(dp(2), 1f);
+        hero.addView(summary, fullWithTop(9));
+        return hero;
+    }
+
+    private Button sourceButton(String title, int icon, Runnable action) {
+        Button button = button(title, false);
+        button.setMinHeight(dp(76));
+        button.setCompoundDrawablesWithIntrinsicBounds(0, icon, 0, 0);
+        button.setCompoundDrawableTintList(ColorStateList.valueOf(AQUA));
+        button.setCompoundDrawablePadding(dp(4));
+        button.setPadding(dp(6), dp(12), dp(6), dp(11));
+        button.setOnClickListener(view -> action.run());
+        return button;
     }
 
     private void updateResponsiveLayout(Configuration configuration) {
@@ -495,7 +528,7 @@ public class MainActivity extends Activity {
             TextView buildStatus, Button playButton, Button saveButton, Button saveGameData) {
         page.removeAllViews();
         page.setPadding(dp(28), dp(24), dp(28), dp(28));
-        page.setGravity(Gravity.CENTER_VERTICAL);
+        page.setGravity(Gravity.TOP);
         page.addView(hero, full());
 
         LinearLayout workspace = new LinearLayout(this);
@@ -533,34 +566,40 @@ public class MainActivity extends Activity {
         nav.setOrientation(LinearLayout.HORIZONTAL);
         nav.setGravity(Gravity.CENTER);
         nav.setPadding(dp(5), dp(5), dp(5), dp(5));
-        GradientDrawable navSurface = gradient(new int[]{Color.rgb(41, 53, 71), Color.rgb(25, 34, 48)}, 26);
-        navSurface.setStroke(dp(1), Color.rgb(66, 82, 102));
+        GradientDrawable navSurface = gradient(new int[]{0xFF252F39, 0xFF141B24}, 29);
+        navSurface.setStroke(dp(1), 0xFF3D4B56);
         nav.setBackground(navSurface);
         String[] labels = {"Build", "Web", "Library", "Settings"};
         int[] icons = {R.drawable.nav_build, R.drawable.nav_web, R.drawable.nav_library, R.drawable.nav_settings};
         for (int i = 0; i < labels.length; i++) {
             final int destination = i;
-            Button item = button(labels[i], i == selectedDestination);
+            boolean selected = i == selectedDestination;
+            Button item = button(labels[i], false);
+            item.setTextColor(selected ? WHITE : MUTED);
+            GradientDrawable tabSurface = gradient(new int[]{0xFF284641, 0xFF1C3433}, 22);
+            tabSurface.setStroke(dp(1), 0xFF486F63);
+            item.setBackground(new RippleDrawable(ColorStateList.valueOf(0x35B7F4E0),
+                    selected ? tabSurface : null, rounded(WHITE, 22)));
             item.setTextSize(11);
             item.setMinHeight(dp(48));
             item.setPadding(dp(2), dp(4), dp(2), dp(4));
             item.setCompoundDrawablePadding(dp(1));
             item.setCompoundDrawablesWithIntrinsicBounds(0, icons[i], 0, 0);
-            item.setSelected(i == selectedDestination);
-            item.setCompoundDrawableTintList(ColorStateList.valueOf(i == selectedDestination ? BG : AQUA));
+            item.setSelected(selected);
+            item.setCompoundDrawableTintList(ColorStateList.valueOf(selected ? MINT : MUTED));
             item.setOnClickListener(v -> {
                 if (destination == 0) showConvertPage(0);
                 else if (destination == 1) openBrowser();
                 else if (destination == 2) showConvertPage(1);
                 else openSettings();
             });
-            LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(0, dp(52), 1);
+            LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(0, -2, 1);
             itemParams.leftMargin = dp(i == 0 ? 0 : 4);
             itemParams.rightMargin = dp(i == labels.length - 1 ? 0 : 4);
             nav.addView(item, itemParams);
         }
         LinearLayout.LayoutParams navParams = fullWithTop(6);
-        navParams.setMargins(dp(6), dp(6), dp(6), dp(8));
+        navParams.setMargins(dp(14), dp(5), dp(14), dp(8));
         root.addView(nav, navParams);
     }
 
@@ -688,7 +727,7 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(BG);
         Button back = button("‹     APK FORGE MENU", false);
         back.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-        if (tabletMode) back.setVisibility(View.GONE);
+        if (tabletMode || studioMode) back.setVisibility(View.GONE);
         back.setOnClickListener(v -> showConvertPage(0));
         root.addView(back, full());
         root.addView(label("Diagnostics", 27, WHITE, true), fullWithTop(16));
@@ -763,7 +802,7 @@ public class MainActivity extends Activity {
 
         Button back = button("‹     APK FORGE MENU", false);
         back.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-        if (tabletMode) back.setVisibility(View.GONE);
+        if (tabletMode || studioMode) back.setVisibility(View.GONE);
         back.setOnClickListener(v -> showConvertPage(0));
         root.addView(back, full());
         root.addView(label("Offline HTML save editor", 26, WHITE, true), fullWithTop(12));
@@ -976,7 +1015,7 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(BG);
         Button back = button("‹     APK FORGE MENU", false);
         back.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-        if (tabletMode) back.setVisibility(View.GONE);
+        if (tabletMode || studioMode) back.setVisibility(View.GONE);
         back.setOnClickListener(v -> showConvertPage(0));
         root.addView(back, full());
         root.addView(label("Settings", 27, WHITE, true), fullWithTop(14));
@@ -2980,14 +3019,16 @@ public class MainActivity extends Activity {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(dp(studioMode ? 20 : 17), dp(studioMode ? 20 : 16), dp(studioMode ? 20 : 17), dp(studioMode ? 20 : 16));
-        GradientDrawable surface = rounded(CARD, 22);
-        surface.setStroke(dp(1), Color.rgb(49, 61, 80));
+        GradientDrawable surface = gradient(new int[]{CARD, 0xFF131B25}, 23);
+        surface.setStroke(dp(1), 0xFF2D3C49);
         box.setBackground(surface);
-        TextView title = label(heading, 18, WHITE, true);
+        TextView title = label(heading, 19, WHITE, true);
+        title.setLetterSpacing(-0.018f);
         if (Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
         box.addView(title);
-        TextView subtitle = label(detail, 12, MUTED, false);
-        subtitle.setPadding(0, dp(7), 0, 0);
+        TextView subtitle = label(detail, 13, MUTED, false);
+        subtitle.setPadding(0, dp(4), 0, 0);
+        subtitle.setLineSpacing(dp(2), 1f);
         box.addView(subtitle);
         parent.addView(box, full());
         return box;
@@ -3026,8 +3067,8 @@ public class MainActivity extends Activity {
                 {-android.R.attr.state_enabled}, {}
         }, new int[]{MUTED, primary ? BG : WHITE}));
         GradientDrawable surface = gradient(primary ? new int[]{MINT, Color.rgb(109, 211, 204)}
-                : new int[]{Color.rgb(43, 54, 71), Color.rgb(29, 38, 53)}, 16);
-        if (!primary) surface.setStroke(dp(1), Color.rgb(62, 76, 96));
+                : new int[]{0xFF27333E, 0xFF1C2630}, 16);
+        if (!primary) surface.setStroke(dp(1), 0xFF3A4A57);
         android.graphics.drawable.StateListDrawable backgrounds = new android.graphics.drawable.StateListDrawable();
         backgrounds.addState(new int[]{-android.R.attr.state_enabled}, rounded(INPUT, 16));
         backgrounds.addState(new int[]{}, surface);
@@ -3286,8 +3327,8 @@ public class MainActivity extends Activity {
                     if (isDestroyed()) return;
                     lastApk = saved;
                     lastGameDataBundle = savedGameData;
-                    if (playBuiltButton != null) playBuiltButton.setEnabled(true);
-                    if (saveApkButton != null) saveApkButton.setEnabled(true);
+                    if (playBuiltButton != null) playBuiltButton.setVisibility(View.VISIBLE);
+                    if (saveApkButton != null) saveApkButton.setVisibility(View.VISIBLE);
                     showConvertPage(1); setBusy(false, null); refreshLibrary();
                     if (saveGameDataButton != null) saveGameDataButton.setVisibility(savedGameData == null ? View.GONE : View.VISIBLE);
                     String ready = completed.kind + " APK ready · " + readableSize(saved.length())

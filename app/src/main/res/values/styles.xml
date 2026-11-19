@@ -1,5 +1,5 @@
 <resources>
-    <color name="graphite">#0C1017</color>
+    <color name="graphite">#090D13</color>
     <color name="mint">#A7F9D6</color>
     <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>

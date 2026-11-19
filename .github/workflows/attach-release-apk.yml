@@ -1,0 +1,50 @@
+name: Attach signed release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag for the draft release on the selected main commit
+        type: string
+        required: true
+      sha256:
+        description: SHA-256 of the signed APK prepared on that commit
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  attach:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      APK_TAG: ${{ inputs.tag }}
+      APK_SHA256: ${{ inputs.sha256 }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify and attach the signed APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$APK_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$APK_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          test "$(git rev-parse "refs/tags/$APK_TAG^{commit}")" = "$GITHUB_SHA"
+          test "$(gh release view "$APK_TAG" --json isDraft --jq '.isDraft')" = true
+
+          # Two Git notes carry the already signed APK without adding binaries to main.
+          apk="APKForge-${APK_TAG}-standalone-release.apk"
+          for part in 1 2; do
+            ref="refs/notes/apkforge-release-$part"
+            git fetch --no-tags origin "$ref:$ref"
+            blob="$(git notes --ref="$ref" list "$GITHUB_SHA")"
+            git cat-file blob "$blob"
+          done > "$apk"
+          printf '%s  %s\n' "$APK_SHA256" "$apk" | sha256sum --check
+          gh release upload "$APK_TAG" "$apk#APK Forge ${APK_TAG} signed standalone APK"
