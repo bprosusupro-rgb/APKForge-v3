@@ -1,0 +1,14 @@
+<resources>
+    <color name="graphite">#15161C</color>
+    <color name="surface">#232631</color>
+    <color name="purple">#8B5CF6</color>
+    <color name="purple_light">#C084FC</color>
+    <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">@color/purple_light</item>
+        <item name="android:navigationBarColor">@color/graphite</item>
+        <item name="android:statusBarColor">@color/graphite</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">@color/graphite</item>
+    </style>
+</resources>

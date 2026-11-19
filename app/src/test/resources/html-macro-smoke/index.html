@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Offline macro smoke test</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 28px; color: #f4fffc; background: #101c20; font: 18px system-ui,sans-serif; }
+    main { max-width: 780px; margin: 0 auto; }
+    button { min-height: 64px; padding: 12px 24px; border: 0; border-radius: 14px; background: #10b99f; color: #06211e; font: 600 18px system-ui,sans-serif; }
+    #scrollbox { height: min(42vh, 420px); min-height: 220px; overflow: auto; margin-top: 28px; border: 2px solid #10b99f; border-radius: 18px; background: #1a2b30; }
+    #scroll-content { height: 1400px; padding: 24px; background: linear-gradient(#1a2b30,#304b50,#1a2b30); }
+    output { display: block; margin-top: 14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Offline macro smoke test</h1>
+    <p>Open the in-game tools. Add a tap and a scroll, place their markers over this game, then play and reload to verify the macro is saved locally.</p>
+    <button id="tap-target" type="button">Tap counter</button>
+    <output id="tap-count">Taps: 0</output>
+    <div id="scrollbox" aria-label="Scrollable test area" tabindex="0"><div id="scroll-content">Scroll this panel</div></div>
+    <output id="scroll-position">Scroll: 0</output>
+  </main>
+  <script>
+    var taps = 0;
+    document.getElementById("tap-target").addEventListener("click", function () {
+      taps++;
+      document.getElementById("tap-count").textContent = "Taps: " + taps;
+    });
+    document.getElementById("scrollbox").addEventListener("scroll", function (event) {
+      document.getElementById("scroll-position").textContent = "Scroll: " + event.target.scrollTop;
+    });
+  </script>
+  <script src="../../../../../html-template-source/app/src/main/assets/apkforge-touch-adapter.js"></script>
+</body>
+</html>

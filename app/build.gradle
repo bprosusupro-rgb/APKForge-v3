@@ -1,0 +1,55 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.gamebridge.mobile'
+    compileSdk 36
+
+    def releaseSigningFile = rootProject.file('release-signing.properties')
+    def releaseSigning = new Properties()
+    if (releaseSigningFile.isFile()) {
+        releaseSigningFile.withInputStream { releaseSigning.load(it) }
+    }
+
+    sourceSets {
+        main.java.srcDir '../shared/src/main/java'
+    }
+
+    defaultConfig {
+        // Keep each release independently installable beside the previous fallback APKs.
+        applicationId 'com.gamebridge.mobile.v5'
+        minSdk 26
+        targetSdk 35
+        versionCode 3
+        versionName '3.0.0'
+    }
+
+    signingConfigs {
+        release {
+            if (!releaseSigning.isEmpty()) {
+                storeFile rootProject.file(releaseSigning.getProperty('storeFile'))
+                storePassword releaseSigning.getProperty('storePassword')
+                keyAlias releaseSigning.getProperty('keyAlias')
+                keyPassword releaseSigning.getProperty('keyPassword')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (!releaseSigning.isEmpty()) signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
+
+    androidResources {
+        noCompress += ['apk']
+    }
+}
+
+dependencies {
+    implementation 'com.android.tools.build:apksig:8.13.0'
+    implementation 'com.google.ai.edge.litertlm:litertlm-android:0.17.1'
+    testImplementation 'junit:junit:4.13.2'
+}

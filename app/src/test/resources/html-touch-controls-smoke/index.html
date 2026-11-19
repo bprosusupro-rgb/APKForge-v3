@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>APK Forge touch smoke test</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#101923;color:#eef5ff;font:16px system-ui,sans-serif}
+    body{padding:24px}canvas{width:min(100%,420px);height:100px;background:#26384b;border-radius:12px}
+    button,input{font:inherit;padding:12px;border-radius:10px;margin:8px 0}#tiny-choice{width:16px;height:16px;padding:0;font-size:8px}pre{white-space:pre-wrap;overflow-wrap:anywhere}
+  </style>
+</head>
+<body>
+  <h1>Touch controls test</h1>
+  <p>Use the arrow keys. Press Space to jump.</p>
+  <canvas id="game" width="420" height="100" aria-label="Test game canvas"></canvas>
+  <p id="events">Keys: none</p>
+  <p id="tap-count">Taps: 0</p>
+  <button id="tiny-choice" type="button" aria-label="Tiny choice">+</button>
+  <p id="tiny-count">Tiny taps: 0</p>
+  <button id="make-input" type="button">Show name field</button>
+  <p id="typed">Typed: none</p>
+  <script>
+    document.addEventListener('keydown', function (event) {
+      document.getElementById('events').textContent += ' ' + (event.code || event.key);
+    });
+    var taps = Number(localStorage.getItem('apkforge-smoke-taps') || 0);
+    document.getElementById('tap-count').textContent = 'Taps: ' + taps;
+    document.getElementById('game').addEventListener('click', function () {
+      taps++;
+      localStorage.setItem('apkforge-smoke-taps', String(taps));
+      document.getElementById('tap-count').textContent = 'Taps: ' + taps;
+    });
+    var tinyTaps = 0;
+    document.getElementById('tiny-choice').addEventListener('click', function () {
+      document.getElementById('tiny-count').textContent = 'Tiny taps: ' + (++tinyTaps);
+    });
+    document.getElementById('make-input').addEventListener('click', function () {
+      var field = document.createElement('input');
+      field.id = 'name-field';
+      field.type = 'text';
+      field.placeholder = 'Type here';
+      document.body.appendChild(field);
+      field.addEventListener('input', function () {
+        document.getElementById('typed').textContent = 'Typed: ' + field.value;
+      });
+      field.focus();
+    });
+  </script>
+</body>
+</html>
